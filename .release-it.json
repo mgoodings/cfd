@@ -1,0 +1,10 @@
+{
+  "src": {
+    "tagName": "v%s"
+  },
+  "github": {
+    "release": true,
+    "assets": "dist/*.tar.gz"
+  },
+  "buildCommand": "rm -rf dist && mkdir -p dist && tar -czvf dist/cfd_${version}.tar.gz -C bin ."
+}

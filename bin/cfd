@@ -1,0 +1,270 @@
+#!/usr/bin/env bash
+
+VERSION="0.0.1"
+
+#
+# Log <type> <msg>
+#
+
+log() {
+  printf "  \033[36m%10s\033[0m : \e[32m%s\e[22m\033[0m\n" "$1" "$2"
+}
+
+#
+# Exit with the given <msg ...>
+#
+
+abort() {
+  printf "\n  \033[31mError: $@\033[0m\n\n" && exit 1
+}
+
+display_help() {
+  cat <<-EOF
+
+  Usage: cfd [options] [COMMAND] [args]
+
+  Commands:
+
+    cfd validate <template>                 Validate a template
+    cfd plan <stack> <template> <params?>   Plan changes for a stack
+    cfd apply <stack> <template> <params?>  Apply changes to a stack
+    cfd tail <stack>                        Tail latest stack events
+
+  Options:
+
+    -V, --version     Output current version of cfd
+    -h, --help        Display help information
+    -i, --ignore-env  Ignore CFVAR_ environment variables
+
+  Aliases:
+
+    v   validate
+    p   plan
+    a   apply
+    t   tail
+
+EOF
+}
+
+#
+# Output cfd version.
+#
+
+display_version() {
+  echo $VERSION && exit 0
+}
+
+#
+# State
+#
+
+USE_CFVARS=true
+
+#
+# Get the status of a stack.
+# _get_stack_status <stack-name>
+#
+
+_get_stack_status () {
+  local stack_name=$1
+
+  echo `aws cloudformation describe-stacks --stack-name $stack_name | jq -c -r .Stacks[0].StackStatus`
+}
+
+#
+# Get parameters for a stack deployment.
+#
+
+_get_stack_params() {
+  local params_file=$1
+  local params=()
+  local result=
+
+  if [ -f "$params_file" ]; then
+    # Map json object from params file to list of <Key>=<Value> <Key>=<Value>
+    params+=(`jq -r "to_entries|map(\"\(.key)=\(.value|tostring)\")|join(\" \")" $params_file`)
+  fi
+
+  if $USE_CFVARS; then
+    # Match CFVAR_<Parameter> environment variable names and print as list of <Parameter>=<Value> <Parameter>=<Value>
+    params+=(`env | awk -v ORS=" " -F= '{if($1 ~ /^CFVAR_/) {gsub("^CFVAR_", "", $1); print $1 "=" $2}}'`)
+  fi
+
+  echo "${params[*]}"
+}
+
+#
+# Validate a template file.
+# cfd_validate <template>
+#
+
+cfd_validate() {
+  test -z $1 && abort "template required"
+  local template=$1
+
+  result=`aws cloudformation validate-template \
+    --template-body file://${template} \
+    2>&1`
+
+  if [ "$?" -eq 0 ]; then
+    log validate "successful"
+  else
+    abort "$result"
+  fi
+}
+
+#
+# Plan changes for a stack using a change set.
+# cfd_plan <stack-name> <template> <params-file?>
+#
+
+cfd_plan() {
+  test -z $1 && abort "stack name required"
+  test -z $2 && abort "template required"
+  local stack_name=$1
+  local template=$2
+  local params_file=$3
+  local params=
+
+  params=`_get_stack_params $params_file`
+
+  log plan "params: $params"
+
+  result=`aws cloudformation deploy \
+    --stack-name "$stack_name" \
+    --template-file "$template" \
+    $([[ -n $params ]] && echo "--parameter-overrides $params" || echo "") \
+    --capabilities CAPABILITY_IAM \
+    --no-fail-on-empty-changeset \
+    --no-execute-changeset \
+    2>&1`
+
+  if [ "$?" -eq 0 ]; then
+    last_line=`echo "$result" | tail -n1`
+
+    if [[ ! "$last_line" =~ "No changes to deploy" ]]; then
+      log plan "`$last_line | jq '.Changes[]'`"
+    else
+      log plan "$last_line" && exit 0
+    fi
+  else
+    abort "$result"
+  fi
+}
+
+#
+# Apply changes to a stack using a change set.
+# cfd_apply <stack-name> <template> <params-file?>
+#
+
+cfd_apply() {
+  test -z $1 && abort "stack name required"
+  test -z $2 && abort "template required"
+  local stack_name=$1
+  local template=$2
+  local params_file=$3
+  local log=`mktemp`
+  local params=
+  local pid=
+
+  params=`_get_stack_params $params_file`
+
+  log plan "params: $params"
+
+  # Execute deploy in background process
+  aws cloudformation deploy \
+    --stack-name "$stack_name" \
+    --template-file "$template" \
+    $([[ -n $params ]] && echo "--parameter-overrides $params" || echo "") \
+    --capabilities CAPABILITY_IAM \
+    --no-fail-on-empty-changeset \
+    > >(tee "$log") 2>&1 &
+
+  pid=$!
+
+  log apply "watching pid: $pid"
+
+  while kill -0 $pid > /dev/null 2>&1; do
+    if fgrep "Waiting for stack create" "$log" > /dev/null; then
+      log apply "killing pid: $pid"
+
+      kill $pid
+
+      break
+    fi
+
+    sleep 1
+  done
+}
+
+#
+# Tail the latest stack events.
+# cfd_tail <stack-name>
+#
+
+cfd_tail() {
+  test -z $1 && abort "stack name required"
+  local stack_name=$1
+  local last_event
+  local last_event_id
+  local stack_status=`_get_stack_status $stack_name`
+
+  if [[ "$stack_status" =~ "_COMPLETE" ]]; then
+    log tail "No events to tail"
+
+    return
+  fi
+
+  until \
+  	[ "$stack_status" = "CREATE_COMPLETE" ] \
+  	|| [ "$stack_status" = "CREATE_FAILED" ] \
+  	|| [ "$stack_status" = "DELETE_COMPLETE" ] \
+  	|| [ "$stack_status" = "DELETE_FAILED" ] \
+  	|| [ "$stack_status" = "ROLLBACK_COMPLETE" ] \
+  	|| [ "$stack_status" = "ROLLBACK_FAILED" ] \
+  	|| [ "$stack_status" = "UPDATE_COMPLETE" ] \
+  	|| [ "$stack_status" = "UPDATE_ROLLBACK_COMPLETE" ] \
+  	|| [ "$stack_status" = "UPDATE_ROLLBACK_FAILED" ]; do
+	  last_event=`aws cloudformation describe-stack-events \
+      --stack $stack_name \
+      --query 'StackEvents[].{ EventId: EventId, LogicalResourceId: LogicalResourceId, ResourceType: ResourceType, ResourceStatus: ResourceStatus, Timestamp: Timestamp }' \
+      --max-items 1 | jq .[0]`
+
+	  event_id=`echo "$last_event" | jq -r .EventId`
+
+	  if [ "$event_id" != "$last_event_id" ]; then
+		  last_event_id=$event_id
+      details=`echo $last_event | jq -r '.Timestamp + "\t" + .ResourceType + "\t\t" + .LogicalResourceId + "\t\t" + .ResourceStatus'`
+
+  	  log tail "$details"
+	  fi
+
+    sleep 3
+
+	  stack_status=`_get_stack_status $stack_name`
+  done
+
+  log tail "$stack_status"
+}
+
+#
+# Handle arguments.
+#
+
+if test $# -eq 0; then
+  display_help
+else
+  while test $# -ne 0; do
+    case $1 in
+      -V|--version) display_version ;;
+      -h|--help|help) display_help; exit ;;
+      -i|--ignore-env) USE_CFVARS=false ;;
+      v|validate) cfd_validate $2; exit ;;
+      p|plan) shift; cfd_plan $@; exit ;;
+      a|apply) shift; cfd_apply $@; exit ;;
+      t|tail) cfd_tail $2; exit ;;
+      *) display_help; exit ;;
+    esac
+    shift
+  done
+fi
