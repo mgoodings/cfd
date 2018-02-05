@@ -1,7 +1,7 @@
 {
   "name": "cfd",
   "description": "Wrapper for CloudFormation deploys using the aws-cli",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "author": "Miles Goodings <miles.goodings@gmail.com>",
   "homepage": "https://github.com/mgoodings/cfd",
   "bugs": "https://github.com/mgoodings/cfd/issues",
