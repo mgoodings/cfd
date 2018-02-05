@@ -1,11 +1,14 @@
-# cfd
-Wrapper for CloudFormation deploys using the aws-cli
+# `cfd` - A wrapper for CloudFormation deploys
+
+Easy CloudFormation deploys using only bash, jq and the aws cli
 
 ## Installation
 
     $ curl -L https://raw.githubusercontent.com/mgoodings/cfd/master/install.sh | bash
 
 ## Example
+
+![](https://i.imgur.com/sjwSYkI.gif)
 
     $ cfd validate template.yml
 
@@ -15,9 +18,13 @@ Wrapper for CloudFormation deploys using the aws-cli
 
     $ cfd tail example-stack
 
+## Stack Parameters
+
+Stack parameters can be injected using a JSON key/value file (optional) and/or by using prefixed environment variables (eg. CFVAR_ParameterName=ParameterValue)
+
 ## Usage
 
-    Output can also be obtained from `cfd --help`.
+Output can also be obtained from `cfd --help`.
 
     Usage: cfd [options] [COMMAND] [args]
 
@@ -40,10 +47,6 @@ Wrapper for CloudFormation deploys using the aws-cli
       p   plan
       a   apply
       t   tail
-
-## Stack Parameters
-
-Stack parameters can be injected using a JSON key/value file (optional) and/or by using an prefixed environment variables (eg. CFVAR_ParameterName=ParameterValue)
 
 ## License
 
