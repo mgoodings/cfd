@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -o pipefail
+
 VERSION="0.0.2"
 
 #
@@ -70,7 +72,15 @@ USE_CFVARS=true
 _get_stack_status () {
   local stack_name=$1
 
-  echo `aws cloudformation describe-stacks --stack-name $stack_name | jq -c -r .Stacks[0].StackStatus`
+  # Catch and forward exit code
+  result=`aws cloudformation describe-stacks --stack-name $stack_name | jq -c -r .Stacks[0].StackStatus`
+  exit_code=$?
+
+  if [ "$exit_code" -eq 0 ]; then
+    echo "$result"
+  else
+    exit $exit_code
+  fi
 }
 
 #
@@ -127,7 +137,7 @@ cfd_package() {
   local template=$1
   local output_template=$2
   local s3_bucket=$3
-  local s3_prefix=$4
+  local s3_prefix=${4:-}
 
   log package "packaging template '$template' to '$s3_bucket$([[ -n $s3_prefix ]] && echo "/$s3_prefix" || echo "")'"
 
@@ -155,7 +165,7 @@ cfd_plan() {
   test -z $2 && abort "template required"
   local stack_name=$1
   local template=$2
-  local params_file=$3
+  local params_file=${3:-}
   local params=
 
   params=`_get_stack_params $params_file`
@@ -194,7 +204,7 @@ cfd_apply() {
   test -z $2 && abort "template required"
   local stack_name=$1
   local template=$2
-  local params_file=$3
+  local params_file=${3:-}
   local log=`mktemp`
   local params=
   local pid=
@@ -216,6 +226,7 @@ cfd_apply() {
 
   log apply "watching pid: $pid"
 
+  # Exit process after change-set has been applied
   while kill -0 $pid > /dev/null 2>&1; do
     if fgrep "Waiting for stack create" "$log" > /dev/null; then
       log apply "killing pid: $pid"
@@ -239,34 +250,38 @@ cfd_tail() {
   local stack_name=$1
   local last_event
   local last_event_id
-  local stack_status=`_get_stack_status $stack_name`
+  local stack_status
 
-  if [[ "$stack_status" =~ "_COMPLETE" ]]; then
-    log tail "No events to tail"
+  stack_status=`_get_stack_status $stack_name`
+
+  if [ "$?" -ne 0 ]; then
+    abort "failed to get stack status"
+  fi
+
+  if [[ "$stack_status" =~ "_COMPLETE" ]] \
+    || [[ "$stack_status" =~ "_FAILED" ]]; then
+    log tail "no changes to tail"
 
     return
   fi
 
   until \
-    [ "$stack_status" = "CREATE_COMPLETE" ] \
-    || [ "$stack_status" = "CREATE_FAILED" ] \
-    || [ "$stack_status" = "DELETE_COMPLETE" ] \
-    || [ "$stack_status" = "DELETE_FAILED" ] \
-    || [ "$stack_status" = "ROLLBACK_COMPLETE" ] \
-    || [ "$stack_status" = "ROLLBACK_FAILED" ] \
-    || [ "$stack_status" = "UPDATE_COMPLETE" ] \
-    || [ "$stack_status" = "UPDATE_ROLLBACK_COMPLETE" ] \
-    || [ "$stack_status" = "UPDATE_ROLLBACK_FAILED" ]; do
+    [[ "$stack_status" =~ "_COMPLETE" ]] \
+    || [[ "$stack_status" =~ "_FAILED" ]]; do
     last_event=`aws cloudformation describe-stack-events \
       --stack $stack_name \
       --query 'StackEvents[].{ EventId: EventId, LogicalResourceId: LogicalResourceId, ResourceType: ResourceType, ResourceStatus: ResourceStatus, Timestamp: Timestamp }' \
       --max-items 1 | jq .[0]`
 
+    if [ "$?" -ne 0 ]; then
+      abort "failed to get stack events"
+    fi
+
     event_id=`echo "$last_event" | jq -r .EventId`
 
     if [ "$event_id" != "$last_event_id" ]; then
       last_event_id=$event_id
-      details=`echo $last_event | jq -r '.Timestamp + "\t" + .ResourceType + "\t\t" + .LogicalResourceId + "\t\t" + .ResourceStatus'`
+      details=`echo $last_event | jq -r '.Timestamp + " - " + .ResourceStatus + " - " + .ResourceType + " - " +  .LogicalResourceId'`
 
       log tail "$details"
     fi
@@ -274,9 +289,26 @@ cfd_tail() {
     sleep 3
 
     stack_status=`_get_stack_status $stack_name`
+
+    if [ "$?" -ne 0 ]; then
+      abort "failed to get stack status"
+    fi
   done
 
-  log tail "$stack_status"
+  if [[ "$stack_status" =~ "_FAILED" ]]; then
+    abort "failed with status: $stack_status"
+  elif [ "$stack_status" = "ROLLBACK_COMPLETE" ] \
+    || [ "$stack_status" = "UPDATE_ROLLBACK_COMPLETE" ]; then
+    abort "rollback occurred"
+  elif [ "$stack_status" = "CREATE_COMPLETE" ]; then
+    log tail "create successful"
+  elif [ "$stack_status" = "UPDATE_COMPLETE" ]; then
+    log tail "update successful"
+  elif [ "$stack_status" = "DELETE_COMPLETE" ]; then
+    log tail "delete successful"
+  else
+    abort "unsupported status: $stack_status"
+  fi
 }
 
 #
