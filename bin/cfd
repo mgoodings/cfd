@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VERSION="0.0.2"
+VERSION="0.0.1"
 
 #
 # Log <type> <msg>
@@ -25,11 +25,11 @@ display_help() {
 
   Commands:
 
-    cfd validate <template>                 Validate a template
-    cfd package <template> <output-template-file> <s3-bucket> <extra-options?> Package a template for deployment
-    cfd plan <stack> <template> <params?>   Plan changes for a stack
-    cfd apply <stack> <template> <params?>  Apply changes to a stack
-    cfd tail <stack>                        Tail latest stack events
+    cfd validate <template>                                               Validate a template
+    cfd package <template> <output-template> <s3-bucket> <extra-options?> Package a template for deployment
+    cfd plan <stack> <template> <params?>                                 Plan changes for a stack
+    cfd apply <stack> <template> <params?>                                Apply changes to a stack
+    cfd tail <stack>                                                      Tail latest stack events
 
   Options:
 
@@ -128,7 +128,7 @@ cfd_package() {
   log package $@
 
   local template=$1
-  local output_template_file=$2
+  local output_template=$2
   local s3_bucket=$3
   shift 3
   local extra_options=$@
@@ -139,7 +139,7 @@ cfd_package() {
 
   result=$(aws cloudformation package \
       --template-file "$template" \
-      --output-template-file "$output_template_file" \
+      --output-template-file "$output_template" \
       --s3-bucket "$s3_bucket" \
       $([[ -n $extra_options ]] && echo "$extra_options" || echo "") \
       2>&1)
