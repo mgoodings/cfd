@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VERSION="0.0.1"
+VERSION="0.0.2"
 
 #
 # Log <type> <msg>
@@ -25,11 +25,11 @@ display_help() {
 
   Commands:
 
-    cfd validate <template>                                               Validate a template
-    cfd package <template> <output-template> <s3-bucket> <s3-prefix?> Package a template for deployment
-    cfd plan <stack> <template> <params?>                                 Plan changes for a stack
-    cfd apply <stack> <template> <params?>                                Apply changes to a stack
-    cfd tail <stack>                                                      Tail latest stack events
+    cfd validate <template>                                            Validate a template
+    cfd package <template> <output-template> <s3-bucket> <s3-prefix?>  Package a template for deployment
+    cfd plan <stack> <template> <params?>                              Plan changes for a stack
+    cfd apply <stack> <template> <params?>                             Apply changes to a stack
+    cfd tail <stack>                                                   Tail latest stack events
 
   Options:
 
@@ -124,19 +124,12 @@ cfd_package() {
   test -z $1 && abort "template required"
   test -z $2 && abort "output template file required"
   test -z $3 && abort "s3-bucket required"
-
-  log package $@
-
   local template=$1
   local output_template=$2
   local s3_bucket=$3
   local s3_prefix=$4
-  # shift 3
-  # local extra_options=$@
 
-  #log package "extra_options: ${extra_options}"
-
-  log package "Packaging template '$template' to '$s3_bucket'"
+  log package "packaging template '$template' to '$s3_bucket$([[ -n $s3_prefix ]] && echo "/$s3_prefix" || echo "")'"
 
   result=$(aws cloudformation package \
       --template-file "$template" \
@@ -144,11 +137,9 @@ cfd_package() {
       --s3-bucket "$s3_bucket" \
       $([[ -n $s3_prefix ]] && echo "--s3-prefix $s3_prefix" || echo "") \
       2>&1)
-      # $([[ -n $extra_options ]] && echo "$extra_options" || echo "") \
 
   if [ "$?" -eq 0 ]; then
     log package "successful"
-    log package "result: $result"
   else
     abort "$result"
   fi

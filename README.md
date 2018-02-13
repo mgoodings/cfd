@@ -30,10 +30,11 @@ Output can also be obtained from `cfd --help`.
 
     Commands:
 
-      cfd validate <template>                 Validate a template
-      cfd plan <stack> <template> <params?>   Plan changes for a stack
-      cfd apply <stack> <template> <params?>  Apply changes to a stack
-      cfd tail <stack>                        Tail latest stack events
+      cfd validate <template>                                            Validate a template
+      cfd package <template> <output-template> <s3-bucket> <s3-prefix?>  Package a template for deployment
+      cfd plan <stack> <template> <params?>                              Plan changes for a stack
+      cfd apply <stack> <template> <params?>                             Apply changes to a stack
+      cfd tail <stack>                                                   Tail latest stack events
 
     Options:
 
@@ -44,6 +45,7 @@ Output can also be obtained from `cfd --help`.
     Aliases:
 
       v   validate
+      k   package
       p   plan
       a   apply
       t   tail
