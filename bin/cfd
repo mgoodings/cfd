@@ -117,21 +117,22 @@ cfd_validate() {
 
 #
 # Package a stack for deployment
-# cfd_package <template> <output-template-file> <s3-bucket> <extra-options?>
+# cfd_package <template> <output-template> <s3-bucket> <s3-prefix?>
 #
 
 cfd_package() {
   test -z $1 && abort "template required"
-  test -z $3 && abort "output template file required"
-  test -z $2 && abort "s3-bucket required"
+  test -z $2 && abort "output template file required"
+  test -z $3 && abort "s3-bucket required"
 
   log package $@
 
   local template=$1
   local output_template=$2
   local s3_bucket=$3
-  shift 3
-  local extra_options=$@
+  local s3_prefix=$4
+  # shift 3
+  # local extra_options=$@
 
   log package "extra_options: ${extra_options}"
 
@@ -141,8 +142,8 @@ cfd_package() {
       --template-file "$template" \
       --output-template-file "$output_template" \
       --s3-bucket "$s3_bucket" \
-      $([[ -n $extra_options ]] && echo "$extra_options" || echo "") \
       2>&1)
+      # $([[ -n $extra_options ]] && echo "$extra_options" || echo "") \
 
   if [ "$?" -eq 0 ]; then
     log package "successful"
