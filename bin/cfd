@@ -25,10 +25,11 @@ display_help() {
 
   Commands:
 
-    cfd validate <template>                 Validate a template
-    cfd plan <stack> <template> <params?>   Plan changes for a stack
-    cfd apply <stack> <template> <params?>  Apply changes to a stack
-    cfd tail <stack>                        Tail latest stack events
+    cfd validate <template>                                               Validate a template
+    cfd package <template> <output-template> <s3-bucket> <s3-prefix?> Package a template for deployment
+    cfd plan <stack> <template> <params?>                                 Plan changes for a stack
+    cfd apply <stack> <template> <params?>                                Apply changes to a stack
+    cfd tail <stack>                                                      Tail latest stack events
 
   Options:
 
@@ -39,6 +40,7 @@ display_help() {
   Aliases:
 
     v   validate
+    k   package
     p   plan
     a   apply
     t   tail
@@ -108,6 +110,45 @@ cfd_validate() {
 
   if [ "$?" -eq 0 ]; then
     log validate "successful"
+  else
+    abort "$result"
+  fi
+}
+
+#
+# Package a stack for deployment
+# cfd_package <template> <output-template> <s3-bucket> <s3-prefix?>
+#
+
+cfd_package() {
+  test -z $1 && abort "template required"
+  test -z $2 && abort "output template file required"
+  test -z $3 && abort "s3-bucket required"
+
+  log package $@
+
+  local template=$1
+  local output_template=$2
+  local s3_bucket=$3
+  local s3_prefix=$4
+  # shift 3
+  # local extra_options=$@
+
+  #log package "extra_options: ${extra_options}"
+
+  log package "Packaging template '$template' to '$s3_bucket'"
+
+  result=$(aws cloudformation package \
+      --template-file "$template" \
+      --output-template-file "$output_template" \
+      --s3-bucket "$s3_bucket" \
+      $([[ -n $s3_prefix ]] && echo "--s3-prefix $s3_prefix" || echo "") \
+      2>&1)
+      # $([[ -n $extra_options ]] && echo "$extra_options" || echo "") \
+
+  if [ "$?" -eq 0 ]; then
+    log package "successful"
+    log package "result: $result"
   else
     abort "$result"
   fi
@@ -260,6 +301,7 @@ else
       -h|--help|help) display_help; exit ;;
       -i|--ignore-env) USE_CFVARS=false ;;
       v|validate) cfd_validate $2; exit ;;
+      k|package) shift; cfd_package $@; exit ;;
       p|plan) shift; cfd_plan $@; exit ;;
       a|apply) shift; cfd_apply $@; exit ;;
       t|tail) cfd_tail $2; exit ;;
