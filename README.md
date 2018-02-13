@@ -4,7 +4,7 @@ Easy CloudFormation deploys using only bash, jq and the aws cli
 
 ## Installation
 
-    $ curl -L https://raw.githubusercontent.com/mgoodings/cfd/master/install.sh | bash
+    $ curl -sfL https://raw.githubusercontent.com/mgoodings/cfd/master/install.sh | sh
 
 ## Example
 
