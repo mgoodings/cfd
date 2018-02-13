@@ -216,32 +216,32 @@ cfd_tail() {
   fi
 
   until \
-  	[ "$stack_status" = "CREATE_COMPLETE" ] \
-  	|| [ "$stack_status" = "CREATE_FAILED" ] \
-  	|| [ "$stack_status" = "DELETE_COMPLETE" ] \
-  	|| [ "$stack_status" = "DELETE_FAILED" ] \
-  	|| [ "$stack_status" = "ROLLBACK_COMPLETE" ] \
-  	|| [ "$stack_status" = "ROLLBACK_FAILED" ] \
-  	|| [ "$stack_status" = "UPDATE_COMPLETE" ] \
-  	|| [ "$stack_status" = "UPDATE_ROLLBACK_COMPLETE" ] \
-  	|| [ "$stack_status" = "UPDATE_ROLLBACK_FAILED" ]; do
-	  last_event=`aws cloudformation describe-stack-events \
+    [ "$stack_status" = "CREATE_COMPLETE" ] \
+    || [ "$stack_status" = "CREATE_FAILED" ] \
+    || [ "$stack_status" = "DELETE_COMPLETE" ] \
+    || [ "$stack_status" = "DELETE_FAILED" ] \
+    || [ "$stack_status" = "ROLLBACK_COMPLETE" ] \
+    || [ "$stack_status" = "ROLLBACK_FAILED" ] \
+    || [ "$stack_status" = "UPDATE_COMPLETE" ] \
+    || [ "$stack_status" = "UPDATE_ROLLBACK_COMPLETE" ] \
+    || [ "$stack_status" = "UPDATE_ROLLBACK_FAILED" ]; do
+    last_event=`aws cloudformation describe-stack-events \
       --stack $stack_name \
       --query 'StackEvents[].{ EventId: EventId, LogicalResourceId: LogicalResourceId, ResourceType: ResourceType, ResourceStatus: ResourceStatus, Timestamp: Timestamp }' \
       --max-items 1 | jq .[0]`
 
-	  event_id=`echo "$last_event" | jq -r .EventId`
+    event_id=`echo "$last_event" | jq -r .EventId`
 
-	  if [ "$event_id" != "$last_event_id" ]; then
-		  last_event_id=$event_id
+    if [ "$event_id" != "$last_event_id" ]; then
+      last_event_id=$event_id
       details=`echo $last_event | jq -r '.Timestamp + "\t" + .ResourceType + "\t\t" + .LogicalResourceId + "\t\t" + .ResourceStatus'`
 
-  	  log tail "$details"
-	  fi
+      log tail "$details"
+    fi
 
     sleep 3
 
-	  stack_status=`_get_stack_status $stack_name`
+    stack_status=`_get_stack_status $stack_name`
   done
 
   log tail "$stack_status"
