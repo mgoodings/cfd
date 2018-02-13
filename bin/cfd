@@ -26,7 +26,7 @@ display_help() {
   Commands:
 
     cfd validate <template>                                               Validate a template
-    cfd package <template> <output-template> <s3-bucket> <extra-options?> Package a template for deployment
+    cfd package <template> <output-template> <s3-bucket> <s3-prefix?> Package a template for deployment
     cfd plan <stack> <template> <params?>                                 Plan changes for a stack
     cfd apply <stack> <template> <params?>                                Apply changes to a stack
     cfd tail <stack>                                                      Tail latest stack events
@@ -134,7 +134,7 @@ cfd_package() {
   # shift 3
   # local extra_options=$@
 
-  log package "extra_options: ${extra_options}"
+  #log package "extra_options: ${extra_options}"
 
   log package "Packaging template '$template' to '$s3_bucket'"
 
@@ -142,6 +142,7 @@ cfd_package() {
       --template-file "$template" \
       --output-template-file "$output_template" \
       --s3-bucket "$s3_bucket" \
+      $([[ -n $s3_prefix ]] && echo "--s3-prefix $s3_prefix" || echo "") \
       2>&1)
       # $([[ -n $extra_options ]] && echo "$extra_options" || echo "") \
 
