@@ -6,9 +6,13 @@ Easy CloudFormation deploys using only bash, jq and the aws cli
 
     $ curl -sfL https://raw.githubusercontent.com/mgoodings/cfd/master/install.sh | sh
 
+or
+
+    $ npm install -g cfd
+
 ## Example
 
-![](https://i.imgur.com/sjwSYkI.gif)
+![](https://i.imgur.com/VjocNY9.gif)
 
     $ cfd validate template.yml
 
