@@ -99,7 +99,7 @@ _get_stack_params() {
 
   if $USE_CFVARS; then
     # Match CFVAR_<Parameter> environment variable names and print as list of <Parameter>=<Value> <Parameter>=<Value>
-params+=(`env | awk -v ORS=" " -v OFS="=" -F= '{if($1 ~ /^CFVAR_/) {gsub("^CFVAR_", "", $1)}}1'`)
+    params+=(`env | grep CFVAR | awk -v ORS=" " -v OFS="=" -F= '{if($1 ~ /^CFVAR_/) {gsub("^CFVAR_", "", $1)}}1' | cut -d1`)
   fi
 
   echo "${params[*]}"
