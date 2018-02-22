@@ -258,16 +258,16 @@ cfd_tail() {
     abort "failed to get stack status"
   fi
 
-  if [[ "$stack_status" =~ "_COMPLETE" ]] \
-    || [[ "$stack_status" =~ "_FAILED" ]]; then
+  if [[ "$stack_status" == *_COMPLETE ]] \
+    || [[ "$stack_status" == *_FAILED ]]; then
     log tail "no changes to tail"
 
     return
   fi
 
   until \
-    [[ "$stack_status" =~ "_COMPLETE" ]] \
-    || [[ "$stack_status" =~ "_FAILED" ]]; do
+    [[ "$stack_status" == *_COMPLETE ]] \
+    || [[ "$stack_status" == *_FAILED ]]; do
     last_event=`aws cloudformation describe-stack-events \
       --stack $stack_name \
       --query 'StackEvents[].{ EventId: EventId, LogicalResourceId: LogicalResourceId, ResourceType: ResourceType, ResourceStatus: ResourceStatus, Timestamp: Timestamp }' \
@@ -295,7 +295,7 @@ cfd_tail() {
     fi
   done
 
-  if [[ "$stack_status" =~ "_FAILED" ]]; then
+  if [[ "$stack_status" == *_FAILED ]]; then
     abort "failed with status: $stack_status"
   elif [ "$stack_status" = "ROLLBACK_COMPLETE" ] \
     || [ "$stack_status" = "UPDATE_ROLLBACK_COMPLETE" ]; then
