@@ -2,7 +2,7 @@
 
 set -o pipefail
 
-VERSION="0.0.3"
+VERSION="0.0.5"
 
 #
 # Log <type> <msg>
@@ -99,7 +99,7 @@ _get_stack_params() {
 
   if $USE_CFVARS; then
     # Match CFVAR_<Parameter> environment variable names and print as list of <Parameter>=<Value> <Parameter>=<Value>
-    params+=(`env | grep CFVAR | awk -v ORS=" " -v OFS="=" -F= '{if($1 ~ /^CFVAR_/) {gsub("^CFVAR_", "", $1)}}1'`)
+    params+=(`env | awk -v ORS=" " -v OFS="=" -F= '{if($1 ~ /^CFVAR_/) {n = index($0, "="); $2 = substr($0, n+1); NF=2; gsub("^CFVAR_", "", $1)}}1'`)
   fi
 
   echo "${params[*]}"
@@ -258,16 +258,16 @@ cfd_tail() {
     abort "failed to get stack status"
   fi
 
-  if [[ "$stack_status" =~ "_COMPLETE" ]] \
-    || [[ "$stack_status" =~ "_FAILED" ]]; then
+  if [[ "$stack_status" == *_COMPLETE ]] \
+    || [[ "$stack_status" == *_FAILED ]]; then
     log tail "no changes to tail"
 
     return
   fi
 
   until \
-    [[ "$stack_status" =~ "_COMPLETE" ]] \
-    || [[ "$stack_status" =~ "_FAILED" ]]; do
+    [[ "$stack_status" == *_COMPLETE ]] \
+    || [[ "$stack_status" == *_FAILED ]]; do
     last_event=`aws cloudformation describe-stack-events \
       --stack $stack_name \
       --query 'StackEvents[].{ EventId: EventId, LogicalResourceId: LogicalResourceId, ResourceType: ResourceType, ResourceStatus: ResourceStatus, Timestamp: Timestamp }' \
@@ -295,7 +295,7 @@ cfd_tail() {
     fi
   done
 
-  if [[ "$stack_status" =~ "_FAILED" ]]; then
+  if [[ "$stack_status" == *_FAILED ]]; then
     abort "failed with status: $stack_status"
   elif [ "$stack_status" = "ROLLBACK_COMPLETE" ] \
     || [ "$stack_status" = "UPDATE_ROLLBACK_COMPLETE" ]; then
