@@ -33,7 +33,7 @@ display_help() {
     cfd apply <stack> <template> <params?>                             Apply changes to a stack
     cfd tail <stack> <delay?>                                          Tail latest stack events
     cfd outputs <stack>                                                Print stack outputs as JSON
-    cfd export <stack> <output-file?>                                  Exports stack outputs as CFD_OUT_Var=Value
+    cfd exports <stack> <output-file?>                                 Exports stack outputs as CFD_OUT_Var=Value
 
   Options:
 
@@ -49,7 +49,7 @@ display_help() {
     a   apply
     t   tail
     o   outputs
-    e   export
+    e   exports
 
 EOF
 }
@@ -348,10 +348,10 @@ cfd_outputs() {
 }
 
 #
-# Export the outputs of a stack.
-# cfd_export <stack-name> <output-file?>
+# Exports the outputs of a stack.
+# cfd_exports <stack-name> <output-file?>
 #
-cfd_export() {
+cfd_exports() {
   test -z $1 && abort "stack name required"
   local stack_name=$1
   local output_file=${2:-}
@@ -398,7 +398,7 @@ else
       a|apply) shift; cfd_apply $@; exit ;;
       t|tail) shift; cfd_tail $@; exit ;;
       o|outputs) cfd_outputs $2; exit ;;
-      e|export) shift; cfd_export $@; exit ;;
+      e|exports) shift; cfd_exports $@; exit ;;
       *) display_help; exit ;;
     esac
     shift

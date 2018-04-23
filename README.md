@@ -56,7 +56,7 @@ Output can also be obtained from `cfd --help`.
       a   apply
       t   tail
       o   outputs
-      e   export
+      e   exports
 
 ## License
 
