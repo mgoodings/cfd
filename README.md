@@ -24,7 +24,7 @@ or
 
 ## Stack Parameters
 
-Stack parameters can be injected using a JSON key/value file (optional) and/or by using prefixed environment variables (eg. CFVAR_ParameterName=ParameterValue)
+Stack parameters can be injected using a JSON key/value file (optional) and/or by using prefixed environment variables (eg. CFD_VAR_ParameterName=ParameterValue)
 
 ## Usage
 
@@ -38,13 +38,15 @@ Output can also be obtained from `cfd --help`.
       cfd package <template> <output-template> <s3-bucket> <s3-prefix?>  Package a template for deployment
       cfd plan <stack> <template> <params?>                              Plan changes for a stack
       cfd apply <stack> <template> <params?>                             Apply changes to a stack
-      cfd tail <stack>                                                   Tail latest stack events
+      cfd tail <stack> <delay?>                                          Tail latest stack events
+      cfd outputs <stack>                                                Print stack outputs as JSON
+      cfd export <stack> <output-file?>                                  Exports stack outputs as CFD_OUT_Var=Value
 
     Options:
 
       -V, --version     Output current version of cfd
       -h, --help        Display help information
-      -i, --ignore-env  Ignore CFVAR_ environment variables
+      -i, --ignore-env  Ignore CFD_VAR_ environment variables
 
     Aliases:
 
@@ -53,6 +55,8 @@ Output can also be obtained from `cfd --help`.
       p   plan
       a   apply
       t   tail
+      o   outputs
+      e   export
 
 ## License
 
