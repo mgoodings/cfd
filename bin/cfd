@@ -32,13 +32,14 @@ display_help() {
     cfd plan <stack> <template> <params?>                              Plan changes for a stack
     cfd apply <stack> <template> <params?>                             Apply changes to a stack
     cfd tail <stack> <delay?>                                          Tail latest stack events
-    cfd outputs <stack>                                                Print a stack's outputs as JSON
+    cfd outputs <stack>                                                Print stack outputs as JSON
+    cfd export <stack> <output-file?>                                  Exports stack outputs as CFD_OUT_Var=Value
 
   Options:
 
     -V, --version     Output current version of cfd
     -h, --help        Display help information
-    -i, --ignore-env  Ignore CFVAR_ environment variables
+    -i, --ignore-env  Ignore CFD_VAR_ environment variables
 
   Aliases:
 
@@ -48,6 +49,7 @@ display_help() {
     a   apply
     t   tail
     o   outputs
+    e   export
 
 EOF
 }
@@ -64,7 +66,7 @@ display_version() {
 # State
 #
 
-USE_CFVARS=true
+USE_CFD_VARS=true
 
 #
 # Get the status of a stack.
@@ -105,9 +107,9 @@ _get_stack_params() {
     params+=(`jq -r "to_entries|map(\"\(.key)=\(.value|tostring)\")|join(\" \")" $params_file`)
   fi
 
-  if $USE_CFVARS; then
-    # Match CFVAR_<Parameter> environment variable names and print as list of <Parameter>=<Value> <Parameter>=<Value>
-    params+=(`env | awk -v ORS=" " -F= '{if($1 ~ /^CFVAR_/) {n = index($0, "="); $2 = substr($0, n+1); NF=2; gsub("^CFVAR_", "", $1); print $1 "=" $2}}'`)
+  if $USE_CFD_VARS; then
+    # Match CFD_VAR_<Parameter> environment variable names and print as list of <Parameter>=<Value> <Parameter>=<Value>
+    params+=(`env | awk -v ORS=" " -F= '{if($1 ~ /^CFD_VAR_/) {n = index($0, "="); $2 = substr($0, n+1); NF=2; gsub("^CFD_VAR_", "", $1); print $1 "=" $2}}'`)
   fi
 
   echo "${params[*]}"
@@ -322,7 +324,7 @@ cfd_tail() {
 
 #
 # Get the outputs for a stack.
-# cfd_tail <stack-name>
+# cfd_outputs <stack-name>
 #
 
 cfd_outputs() {
@@ -346,6 +348,39 @@ cfd_outputs() {
 }
 
 #
+# Export the outputs of a stack.
+# cfd_export <stack-name> <output-file?>
+#
+cfd_export() {
+  test -z $1 && abort "stack name required"
+  local stack_name=$1
+  local output_file=${2:-}
+
+  result=`cfd_outputs $stack_name 2>&1`
+
+  if [ "$?" -eq 0 ]; then
+    # If we need to write to an env file
+    if [ ! -z "$output_file" ]; then
+      # Convert json key/value to CFOUT_KEY=VALUE syntax
+      env_vars=`echo "$result" | jq -r "to_entries|map(\"CFD_OUT_\(.key)=\(.value|tostring)\")|.[]"`
+
+      echo "$env_vars" > $output_file
+
+      # Print output_file and environment vars
+      echo "Writing to file: ${output_file}"
+      echo "$env_vars"
+    else
+      # Convert json key/value to export CFOUT_KEY=VALUE syntax
+      env_vars=`echo "$result" | jq -r "to_entries|map(\"export CFD_OUT_\(.key)=\(.value|tostring)\")|.[]"`
+
+      eval "$env_vars" && echo "$env_vars"
+    fi
+  else
+    echo "$result"
+  fi
+}
+
+#
 # Handle arguments.
 #
 
@@ -356,13 +391,14 @@ else
     case $1 in
       -V|--version) display_version ;;
       -h|--help|help) display_help; exit ;;
-      -i|--ignore-env) USE_CFVARS=false ;;
+      -i|--ignore-env) USE_CFD_VARS=false ;;
       v|validate) cfd_validate $2; exit ;;
       k|package) shift; cfd_package $@; exit ;;
       p|plan) shift; cfd_plan $@; exit ;;
       a|apply) shift; cfd_apply $@; exit ;;
       t|tail) shift; cfd_tail $@; exit ;;
       o|outputs) cfd_outputs $2; exit ;;
+      e|export) shift; cfd_export $@; exit ;;
       *) display_help; exit ;;
     esac
     shift
