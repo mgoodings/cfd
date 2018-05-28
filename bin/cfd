@@ -104,12 +104,12 @@ _get_stack_params() {
 
   if [ -f "$params_file" ]; then
     # Map json object from params file to list of <Key>=<Value> <Key>=<Value>
-    params+=("`jq -r 'to_entries|map("\(.key)=\\"\(.value|tostring)\\"")|join(" ")' $params_file`")
+    params+=("`jq -r 'to_entries|map("\\"\(.key)=\(.value|tostring)\\"")|join(" ")' $params_file`")
   fi
 
   if $USE_CFD_VARS; then
     # Match CFD_VAR_<Parameter> environment variable names and print as list of <Parameter>=<Value> <Parameter>=<Value>
-    params+=("`env | awk -v ORS=" " -F= '{if($1 ~ /^CFD_VAR_/) {n = index($0, "="); $2 = substr($0, n+1); NF=2; gsub("^CFD_VAR_", "", $1); print $1 "=\\"" $2 "\\""}}'`")
+    params+=("`env | awk -v ORS=" " -F= '{if($1 ~ /^CFD_VAR_/) {n = index($0, "="); $2 = substr($0, n+1); NF=2; gsub("^CFD_VAR_", "", $1); print "\\"" $1 "=" $2 "\\""}}'`")
   fi
 
   echo "${params[*]}"
