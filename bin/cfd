@@ -182,14 +182,14 @@ cfd_plan() {
 
   log plan "params: $params"
 
-  result=eval "$(echo "aws cloudformation deploy \
+  result=`eval "$(echo "aws cloudformation deploy \
     --stack-name \"$stack_name\" \
     --template-file \"$template\" \
     $([[ -n $params ]] && echo "--parameter-overrides $params" || echo "") \
     --capabilities CAPABILITY_IAM \
     --no-fail-on-empty-changeset \
     --no-execute-changeset \
-    2>&1")"
+    2>&1")"`
 
   if [ "$?" -eq 0 ]; then
     last_line=`echo "$result" | tail -n1`
