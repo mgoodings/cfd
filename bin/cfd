@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2068
 
 set -o pipefail
 
@@ -17,7 +18,7 @@ log() {
 #
 
 abort() {
-  printf "\n  \033[31mError: $@\033[0m\n\n" && exit 1
+  printf "\n  \033[31mError: $1\033[0m\n\n" && exit 1
 }
 
 display_help() {
@@ -151,12 +152,12 @@ cfd_package() {
 
   log package "packaging template '$template' to '$s3_bucket$([[ -n $s3_prefix ]] && echo "/$s3_prefix" || echo "")'"
 
-  result=$(aws cloudformation package \
-      --template-file "$template" \
-      --output-template-file "$output_template" \
-      --s3-bucket "$s3_bucket" \
-      $([[ -n $s3_prefix ]] && echo "--s3-prefix $s3_prefix" || echo "") \
-      2>&1)
+  result=`eval "$(echo "aws cloudformation package \
+      --template-file \"$template\" \
+      --output-template-file \"$output_template\" \
+      --s3-bucket \"$s3_bucket\" \
+      $([[ -n $s3_prefix ]] && echo "--s3-prefix \"$s3_prefix\"" || echo "") \
+      2>&1")"`
 
   if [ "$?" -eq 0 ]; then
     log package "successful"
@@ -176,7 +177,7 @@ cfd_plan() {
   local stack_name=$1
   local template=$2
   local params_file=${3:-}
-  local params=
+  local params
 
   params=`_get_stack_params $params_file`
 
@@ -215,9 +216,11 @@ cfd_apply() {
   local stack_name=$1
   local template=$2
   local params_file=${3:-}
-  local log=`mktemp`
-  local params=
-  local pid=
+  local log
+  local params
+  local pid
+
+  log=`mktemp`
 
   params=`_get_stack_params $params_file`
 
@@ -230,7 +233,7 @@ cfd_apply() {
     $([[ -n $params ]] && echo "--parameter-overrides $params" || echo "") \
     --capabilities CAPABILITY_IAM \
     --no-fail-on-empty-changeset \
-    > >(tee "$log") 2>&1 &")"
+    > >(tee $log) 2>&1 &")"
 
   pid=$!
 
