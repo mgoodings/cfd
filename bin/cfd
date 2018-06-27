@@ -113,7 +113,8 @@ _get_stack_params() {
     params+=("`env | awk -v ORS=" " -F= '{if($1 ~ /^CFD_VAR_/) {n = index($0, "="); $2 = substr($0, n+1); NF=2; gsub("^CFD_VAR_", "", $1); print "\\"" $1 "=" $2 "\\""}}'`")
   fi
 
-  echo "${params[*]}"
+  # Escape $ to avoid interpolation
+  echo "${params[*]}" | sed 's/\$/\\\$/g'
 }
 
 #
