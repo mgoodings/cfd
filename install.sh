@@ -213,7 +213,7 @@ End of functions from https://github.com/client9/shlib
 ------------------------------------------------------------------------
 EOF
 
-OWNER=mgoodings
+OWNER=irexchange
 REPO=cfd
 BINARY=cfd
 FORMAT=tar.gz
